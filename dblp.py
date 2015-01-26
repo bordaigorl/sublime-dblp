@@ -185,7 +185,7 @@ class DblpInsertKey(DblpSearch):
 
     def on_entry_selected(self, i):
         if i >= 0:
-            citation = self.args.get('snippet', '{cite_key}')
+            citation = self.args.get('template', '{cite_key}')
             self.view.run_command("insert", {"characters": citation.format(**self.results[i])})
 
 
