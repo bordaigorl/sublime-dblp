@@ -25,6 +25,13 @@ if "quote_plus" in urllib.__dict__:
 else:
     urlquote = urllib.parse.quote_plus
 
+try:
+    import HTMLParser
+    entityDecode = HTMLParser.HTMLParser().unescape
+except ImportError:
+    import html.parser
+    entityDecode = html.parser.HTMLParser().unescape
+
 
 def strip_tags(value):
     """Returns the given HTML with all tags stripped."""
@@ -61,14 +68,16 @@ class SearchDBLPThread(threading.Thread):
             for hit in hits:
                 info = hit.get('info')
                 entry_url = hit.get('url')
+                authors = info['authors']['author']
                 if info and entry_url:
                     key = entry_url.replace('http://www.dblp.org/rec/bibtex/', '')
                     result.append({
                             'key': key,
                             'cite_key': u"DBLP:" + key,
                             'title': info['title']['text'],
+                            'year': info['year'],
                             'venue': info['venue']['text'],
-                            'authors': ', '.join(info['authors']['author'])
+                            'authors': entityDecode(', '.join(authors))
                         })
 
             if self.on_search_results:
@@ -100,7 +109,7 @@ class DblpSearch(sublime_plugin.TextCommand):
             sublime.status_message('DBLP returned no results for your search!')
             return
         self.results = results
-        menu = [[x['title'], x['authors'], x['cite_key']] for x in results]
+        menu = [[x['title'], '%s (%s)' % (x['authors'], x['year']), x['cite_key']] for x in results]
         self.window.show_quick_panel(menu, self.on_entry_selected)
 
     def on_entry_selected(self, i):
