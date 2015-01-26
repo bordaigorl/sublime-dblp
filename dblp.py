@@ -92,7 +92,7 @@ class SearchDBLPThread(threading.Thread):
                 raise
 
 
-class DblpSearch(sublime_plugin.TextCommand):
+class DblpSearchCommand(sublime_plugin.TextCommand):
 
     _queryThread = None
 
@@ -113,7 +113,17 @@ class DblpSearch(sublime_plugin.TextCommand):
         self.window.show_quick_panel(menu, self.on_entry_selected)
 
     def on_entry_selected(self, i):
-        pass
+        if i >= 0:
+            entry = self.results[i]
+            txt = '\n# {title}\n> {authors} ({year})\n> {venue}\n  [{key}]\n'.format(**entry)
+            self.window.run_command("show_panel", {"panel": "output.DBLP"})
+            panel = self.window.get_output_panel('DBLP')
+            syntax = sublime.find_resources("Markdown.tmLanguage")
+            if syntax:
+                panel.set_syntax_file(syntax[0])
+            panel.run_command('dblp_insert', {'characters': txt})
+            panel.sel().clear()
+            panel.settings().set('draw_centered', False)
 
     def on_error(self, err):
         sublime.error_message("DBLP Search error: "+err)
@@ -134,7 +144,7 @@ class DblpSearch(sublime_plugin.TextCommand):
         return True
 
 
-class DblpInsertKey(DblpSearch):
+class DblpInsertKey(DblpSearchCommand):
 
     def on_entry_selected(self, i):
         if i >= 0:
@@ -148,7 +158,7 @@ FORMAT_MAP = {
 }
 
 
-class DblpInsertCitation(DblpSearch):
+class DblpInsertCitation(DblpSearchCommand):
 
     def on_entry_selected(self, i):
         if i >= 0:
