@@ -20,53 +20,10 @@ def LOG(m):
     if DEBUG:
         print("DBLP Search: ", m)
 
-if "urlencode" in urllib.__dict__:
-    urlencode = urllib.urlencode
+if "quote_plus" in urllib.__dict__:
+    urlquote = urllib.quote_plus
 else:
-    urlencode = urllib.parse.urlencode
-
-
-POST_PARAMS = {
-    "accc": ":",
-    "bnm": "A",
-    "deb": "0",
-    "dm": "3",
-    "eph": "1",
-    "er": "20",
-    "fh": "1",
-    "fhs": "1",
-    "hppwt": "20",
-    "hppoc": "100",
-    "hrd": "1a",
-    "hrw": "1d",
-    "language": "en",
-    "ll": "2",
-    "log": "/var/log/dblp/error_log",
-    "mcc": "0",
-    "mcl": "80",
-    "mcs": "1000",
-    "mcsr": "40",
-    "mo": "100",
-    "name": "dblpmirror",
-    "navigation_mode": "user",
-    "page": "index.php",
-    "path": "/search/",
-    "qi": "3",
-    "qid": "3",
-    "qt": "H",
-    "rid": "6",
-    "syn": "0"
-}
-
-KEY_PARSER = re.compile(r"""
-    <tr>
-      <td.*?>
-        <a\ href=\"http://www\.dblp\.org/rec/bibtex/(.*?)\">
-        .*?
-      </td>
-      <td.*?>(.*?)</td><td.*?>(.*?)</td>
-    </tr>
-    """, re.VERBOSE)
+    urlquote = urllib.parse.quote_plus
 
 
 def strip_tags(value):
@@ -93,45 +50,32 @@ class SearchDBLPThread(threading.Thread):
 
     def run(self):
         try:
-            conn = httplib.HTTPConnection("dblp.org")
-            POST_PARAMS['query'] = self.query
-            params = urlencode(POST_PARAMS)
-            headers = {"Content-type": "application/x-www-form-urlencoded"}
-            conn.request("POST", "/autocomplete-php/autocomplete/ajax.php", params, headers)
-            response = conn.getresponse()
-            if response.status == 200:
-                data = response.read().decode("utf-8")
-                LOG(data)
-                parsed_data = (data.split("\n")[30].split("=", 1)[1])
-                # mangle ill formed json
-                parsed_data = parsed_data.replace("'", "\"")[:-1]
-                parsed_data = json.loads(parsed_data)
+            url = "http://dblp.org/search/api/?format=json&q=" + urlquote(self.query)
+            data = urlopen(url).read().decode()
+            data = json.loads(data)
+            data = data['result']
+            sublime.status_message("DBLP Search done in %s%s" % (data['time']['text'], data['time']['@unit']))
 
-                LOG(parsed_data)
-
-                body = parsed_data["body"]
-
-                result = []
-                # Filter the relevant information:
-                for match in KEY_PARSER.finditer(body):
-                    LOG(match.group(1))
-                    title = strip_tags(match.group(3))
-                    authors, title = title.split(":", 1)
+            hits = data['hits'].get('hit', [])
+            result = []
+            for hit in hits:
+                info = hit.get('info')
+                entry_url = hit.get('url')
+                if info and entry_url:
+                    key = entry_url.replace('http://www.dblp.org/rec/bibtex/', '')
                     result.append({
-                        'key': match.group(1),
-                        'title': title,
-                        'authors': authors,
-                        'cite_key': u"DBLP:" + match.group(1)
+                            'key': key,
+                            'cite_key': u"DBLP:" + key,
+                            'title': info['title']['text'],
+                            'venue': info['venue']['text'],
+                            'authors': ', '.join(info['authors']['author'])
                         })
 
-                if self.on_search_results:
-                    self.on_search_results(result)
+            if self.on_search_results:
+                self.on_search_results(result)
+            return
 
-            elif self.on_error:
-                LOG('Error %s' % response.reason())
-                self.on_error(response.reason())
         except Exception as e:
-            raise
             LOG('Error [%s]' % e)
             if self.on_error:
                 self.on_error(str(e))
