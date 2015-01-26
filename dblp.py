@@ -4,6 +4,7 @@ import sublime_plugin
 import urllib
 import json
 import re
+from string import Template
 
 import threading
 
@@ -36,6 +37,8 @@ if 'request' in urllib.__dict__:
 else:
     urlopen = urllib.urlopen
 
+MARKDOWN_TEMPLATE = Template('\n# ${title}\n> ${authors} (${year})\n> ${venue}\n  [${key}]\n')
+
 
 class SearchDBLPThread(threading.Thread):
 
@@ -51,6 +54,7 @@ class SearchDBLPThread(threading.Thread):
 
     def run(self):
         try:
+            self.query = self.query.replace("'", " ")
             url = "http://dblp.org/search/api/?format=json&q=" + urlquote(self.query)
             data = urlopen(url).read().decode()
             data = json.loads(data)
@@ -109,7 +113,7 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
     def on_entry_selected(self, i):
         if i >= 0:
             entry = self.results[i]
-            txt = '\n# {title}\n> {authors} ({year})\n> {venue}\n  [{key}]\n'.format(**entry)
+            txt = MARKDOWN_TEMPLATE.safe_substitute(entry)
             self.window.run_command("show_panel", {"panel": "output.DBLP"})
             panel = self.window.get_output_panel('DBLP')
             syntax = sublime.find_resources("Markdown.tmLanguage")
@@ -142,8 +146,11 @@ class DblpInsertKey(DblpSearchCommand):
 
     def on_entry_selected(self, i):
         if i >= 0:
-            citation = self.args.get('template', '{cite_key}')
-            self.view.run_command("insert", {"characters": citation.format(**self.results[i])})
+            citation = self.args.get('template', '${cite_key}')
+            citation = Template(citation)
+            self.view.run_command(
+                "insert_snippet",
+                {"contents": citation.safe_substitute(self.results[i])})
 
 
 FORMAT_MAP = {
