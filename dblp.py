@@ -74,9 +74,9 @@ class SearchDBLPThread(threading.Thread):
                     result.append({
                             'key': key,
                             'cite_key': u"DBLP:" + key,
-                            'title': info['title']['text'],
+                            'title': entityDecode(info['title']['text']),
                             'year': info['year'],
-                            'venue': info['venue']['text'],
+                            'venue': entityDecode(info['venue']['text']),
                             'authors': entityDecode(', '.join(authors))
                         })
 
