@@ -137,8 +137,9 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
                 prompt.run_command("insert_snippet", {"contents", query_snippet})
 
     def is_enabled(self, **kwargs):
-        if len(self.view.sel()) > 0 and 'selector' in kwargs:
-            return self.view.score_selector(self.view.sel()[0].a, kwargs['selector']) > 0
+        if 'selector' in kwargs:
+            pt = self.view.sel()[0].a if len(self.view.sel()) > 0 else 0
+            return self.view.score_selector(pt, kwargs['selector']) > 0
         return True
 
 
