@@ -15,13 +15,17 @@ import functools
 import threading
 
 DEBUG = True
+
+
 def LOG(m):
     if DEBUG:
         print(m)
 
+
 def strip_tags(value):
     """Returns the given HTML with all tags stripped."""
     return re.sub(r'<[^>]*?>', '', value)
+
 
 class SearchDBLPThread(threading.Thread):
 
@@ -39,45 +43,42 @@ class SearchDBLPThread(threading.Thread):
         fun = urllib.urlencode if "urlencode" in urllib.__dict__ else urllib.parse.urlencode
         params = fun({
             "accc": ":",
-            "bnm" :"A",
-            "deb" :"0",
-            "dm" :"3",
-            "eph" : "1",
-            "er" : "20",
-            "fh" : "1",
-            "fhs" :"1",
-            "hppwt" : "20",
-            "hppoc" : "100",
-            "hrd" :"1a",
-            "hrw" :"1d",
-            "language" : "en",
-            "ll" :"2",
-            "log" : "/var/log/dblp/error_log",
-            "mcc" :"0",
-            "mcl" :"80",
-            "mcs" :"1000",
-            "mcsr" : "40",
-            "mo" : "100",
-            "name" :"dblpmirror",
-            "navigation_mode" : "user",
-            "page" :"index.php",
-            "path" : "/search/",
-            "qi" : "3",
-            "qid" :"3",
-            "qt" :"H",
-            "query" : self.query,
-            "rid" :"6",
-            "syn" : "0"
-            })
+            "bnm": "A",
+            "deb": "0",
+            "dm": "3",
+            "eph": "1",
+            "er": "20",
+            "fh": "1",
+            "fhs": "1",
+            "hppwt": "20",
+            "hppoc": "100",
+            "hrd": "1a",
+            "hrw": "1d",
+            "language": "en",
+            "ll": "2",
+            "log": "/var/log/dblp/error_log",
+            "mcc": "0",
+            "mcl": "80",
+            "mcs": "1000",
+            "mcsr": "40",
+            "mo": "100",
+            "name": "dblpmirror",
+            "navigation_mode": "user",
+            "page": "index.php",
+            "path": "/search/",
+            "qi": "3",
+            "qid": "3",
+            "qt": "H",
+            "query": self.query,
+            "rid": "6",
+            "syn": "0"
+        })
 
         headers = {"Content-type": "application/x-www-form-urlencoded"}
         conn.request("POST", "/autocomplete-php/autocomplete/ajax.php", params, headers)
         response = conn.getresponse()
         if response.status == 200:
             data = response.read().decode("utf-8")
-
-
-
             parsed_data = (data.split("\n")[30].split("=", 1)[1])
             # mangle ill formed json
             parsed_data = parsed_data.replace("'", "\"")[:-1]
@@ -98,17 +99,18 @@ class SearchDBLPThread(threading.Thread):
                 result.append([title, authors, cite_key])
 
             sublime.set_timeout(functools.partial(do_response,
-                result),1)
+                                                  result), 1)
             return
 
         LOG(response.reason())
-        return
+
 
 class DblpInsertResultCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, text):
         sel = self.view.sel()[0]
         self.view.insert(edit, sel.begin(), "\cite{%s}" % text)
+
 
 def do_response(data):
     """
