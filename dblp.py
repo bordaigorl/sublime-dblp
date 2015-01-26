@@ -37,7 +37,13 @@ if 'request' in urllib.__dict__:
 else:
     urlopen = urllib.urlopen
 
-MARKDOWN_TEMPLATE = Template('\n# ${title}\n> ${authors} (${year})\n> ${venue}\n  [${key}]\n')
+MARKDOWN_CITATION = '''
+# ${title}
+> ${authors} (${year})
+> ${venue}
+  [${key}]
+'''
+MARKDOWN_TEMPLATE = Template(MARKDOWN_CITATION)
 
 
 class SearchDBLPThread(threading.Thread):
@@ -59,7 +65,8 @@ class SearchDBLPThread(threading.Thread):
             data = urlopen(url).read().decode()
             data = json.loads(data)
             data = data['result']
-            sublime.status_message("DBLP Search done in %s%s" % (data['time']['text'], data['time']['@unit']))
+            sublime.status_message(
+                "DBLP Search done in %s%s" % (data['time']['text'], data['time']['@unit']))
 
             hits = data['hits'].get('hit', [])
             result = []
@@ -153,7 +160,7 @@ class DblpInsertKey(DblpSearchCommand):
                 "insert_snippet",
                 {"contents": citation.safe_substitute(self.results[i])})
 
-
+DBLP_FORMATS = set(['bibtex', 'bibtex_crossref', 'bib', 'bib1', 'bib2', 'xml', 'rdf'])
 FORMAT_MAP = {
     'bibtex': 'bib1',
     'bibtex_crossref': 'bib2'
@@ -166,14 +173,25 @@ class DblpInsertCitation(DblpSearchCommand):
         if i >= 0:
             entry = self.results[i]
             format = self.args.get('format', 'bibtex')
-            format = FORMAT_MAP.get(format, format)
-            url = "http://www.dblp.org/rec/%s/%s" % (format, entry['key'])
-            LOG(url)
-            try:
-                data = urlopen(url).read()
-                self.view.run_command("dblp_insert", {'characters': data.decode(self.view.encoding())})
-            except Exception as e:
-                sublime.status_message("DBLP Error: %s" % e)
+            if format not in DBLP_FORMATS:
+                citation = self.args.get('template', MARKDOWN_CITATION)
+                citation = Template(citation)
+                self.view.run_command(
+                    "insert_snippet",
+                    {'contents': citation.safe_substitute(entry)})
+            else:
+                format = FORMAT_MAP.get(format, format)
+                url = "http://www.dblp.org/rec/%s/%s" % (format, entry['key'])
+                LOG(url)
+                try:
+                    data = urlopen(url).read()
+                    enc = self.view.encoding()
+                    enc = enc if enc != 'Undefined' else 'utf8'
+                    self.view.run_command(
+                        "dblp_insert",
+                        {'characters': data.decode(enc)})
+                except Exception as e:
+                    sublime.status_message("DBLP Error: %s" % e)
 
 
 class DblpInsertCommand(sublime_plugin.TextCommand):
