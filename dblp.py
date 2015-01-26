@@ -1,12 +1,6 @@
 import sublime
 import sublime_plugin
 
-# Sublime Text 3 Python 3 compatibility
-try:
-    import httplib
-except ImportError:
-    import http.client as httplib
-
 import urllib
 import json
 import re
