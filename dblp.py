@@ -21,6 +21,54 @@ def LOG(m):
     if DEBUG:
         print(m)
 
+if "urlencode" in urllib.__dict__:
+    urlencode = urllib.urlencode
+else:
+    urlencode = urllib.parse.urlencode
+
+
+POST_PARAMS = {
+    "accc": ":",
+    "bnm": "A",
+    "deb": "0",
+    "dm": "3",
+    "eph": "1",
+    "er": "20",
+    "fh": "1",
+    "fhs": "1",
+    "hppwt": "20",
+    "hppoc": "100",
+    "hrd": "1a",
+    "hrw": "1d",
+    "language": "en",
+    "ll": "2",
+    "log": "/var/log/dblp/error_log",
+    "mcc": "0",
+    "mcl": "80",
+    "mcs": "1000",
+    "mcsr": "40",
+    "mo": "100",
+    "name": "dblpmirror",
+    "navigation_mode": "user",
+    "page": "index.php",
+    "path": "/search/",
+    "qi": "3",
+    "qid": "3",
+    "qt": "H",
+    "rid": "6",
+    "syn": "0"
+}
+
+KEY_PARSER = re.compile(r"""
+    <tr>
+      <td.*?>
+        <a\ href=\"http://www\.dblp\.org/rec/bibtex/(.*?)\">
+        .*?
+      </td>
+      <td.*?>(.*?)</td><td.*?>(.*?)</td>
+    </tr>
+    """, re.VERBOSE)
+
 
 def strip_tags(value):
     """Returns the given HTML with all tags stripped."""
@@ -40,40 +88,8 @@ class SearchDBLPThread(threading.Thread):
 
     def run(self):
         conn = httplib.HTTPConnection("dblp.org")
-        fun = urllib.urlencode if "urlencode" in urllib.__dict__ else urllib.parse.urlencode
-        params = fun({
-            "accc": ":",
-            "bnm": "A",
-            "deb": "0",
-            "dm": "3",
-            "eph": "1",
-            "er": "20",
-            "fh": "1",
-            "fhs": "1",
-            "hppwt": "20",
-            "hppoc": "100",
-            "hrd": "1a",
-            "hrw": "1d",
-            "language": "en",
-            "ll": "2",
-            "log": "/var/log/dblp/error_log",
-            "mcc": "0",
-            "mcl": "80",
-            "mcs": "1000",
-            "mcsr": "40",
-            "mo": "100",
-            "name": "dblpmirror",
-            "navigation_mode": "user",
-            "page": "index.php",
-            "path": "/search/",
-            "qi": "3",
-            "qid": "3",
-            "qt": "H",
-            "query": self.query,
-            "rid": "6",
-            "syn": "0"
-        })
-
+        POST_PARAMS['query'] = self.query
+        params = urlencode(POST_PARAMS)
         headers = {"Content-type": "application/x-www-form-urlencoded"}
         conn.request("POST", "/autocomplete-php/autocomplete/ajax.php", params, headers)
         response = conn.getresponse()
@@ -84,13 +100,11 @@ class SearchDBLPThread(threading.Thread):
             parsed_data = parsed_data.replace("'", "\"")[:-1]
             parsed_data = json.loads(parsed_data)
 
-            regexp = r"<tr><td.*?><a href=\"http://www.dblp.org/rec/bibtex/(.*?)\">.*?</td><td.*?>(.*?)</td><td.*?>(.*?)</td></tr>"
-
             body = parsed_data["body"]
 
             result = []
             # Filter the relevant information:
-            for match in re.finditer(regexp, body):
+            for match in KEY_PARSER.finditer(body):
                 LOG(match.group(1))
                 cite_key = u"DBLP:" + match.group(1)
                 title = strip_tags(match.group(3))
@@ -131,7 +145,7 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
 
     _queryThread = None
 
-    def run(self, edit):
+    def run(self, edit, query_snippet=None, query=None):
 
         def on_done(q):
             if len(q) > 3:
@@ -141,9 +155,9 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
                 self._queryThread = SearchDBLPThread(self.view, q)
                 self._queryThread.start()
 
-
-        self.view.window().show_input_panel("DBLP Search:", "", on_done, None, None)
-
-
-
-
+        if query:
+            on_done(query)
+        else:
+            prompt = self.view.window().show_input_panel("DBLP Search:", "", on_done, None, None)
+            if query_snippet:
+                prompt.run_command("insert_snippet", {"contents", query_snippet})
