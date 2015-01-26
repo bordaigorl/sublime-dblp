@@ -8,7 +8,7 @@ from string import Template
 
 import threading
 
-DEBUG = True
+DEBUG = False
 
 
 def LOG(m):
@@ -181,5 +181,5 @@ class DblpInsertCommand(sublime_plugin.TextCommand):
         if len(self.view.sel()) > 0:
             region = self.view.sel()[0]
         else:
-            region = sublime.Region(0,0)
+            region = sublime.Region(0, 0)
         self.view.replace(edit, region, characters)
