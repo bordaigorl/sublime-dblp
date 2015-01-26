@@ -3,7 +3,7 @@ import sublime_plugin
 
 # Sublime Text 3 Python 3 compatibility
 try:
-    import httplib    
+    import httplib
 except ImportError:
     import http.client as httplib
 
@@ -13,6 +13,11 @@ import re
 import functools
 
 import threading
+
+DEBUG = True
+def LOG(m):
+    if DEBUG:
+        print(m)
 
 def strip_tags(value):
     """Returns the given HTML with all tags stripped."""
@@ -71,7 +76,7 @@ class SearchDBLPThread(threading.Thread):
         if response.status == 200:
             data = response.read().decode("utf-8")
 
-            
+
 
             parsed_data = (data.split("\n")[30].split("=", 1)[1])
             # mangle ill formed json
@@ -85,7 +90,7 @@ class SearchDBLPThread(threading.Thread):
             result = []
             # Filter the relevant information:
             for match in re.finditer(regexp, body):
-                print(match.group(1))
+                LOG(match.group(1))
                 cite_key = u"DBLP:" + match.group(1)
                 title = strip_tags(match.group(3))
 
@@ -96,7 +101,7 @@ class SearchDBLPThread(threading.Thread):
                 result),1)
             return
 
-        print(response.reason())
+        LOG(response.reason())
         return
 
 class DblpInsertResultCommand(sublime_plugin.TextCommand):
@@ -121,7 +126,7 @@ def do_response(data):
 
 
 class DblpSearchCommand(sublime_plugin.TextCommand):
-    
+
     _queryThread = None
 
     def run(self, edit):
@@ -129,14 +134,14 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
         def on_done(q):
             if len(q) > 3:
                 if self._queryThread != None:
-                    print("Starting Thread...")
+                    LOG("Starting Thread...")
                     self._queryThread.stop()
                 self._queryThread = SearchDBLPThread(self.view, q)
                 self._queryThread.start()
 
 
         self.view.window().show_input_panel("DBLP Search:", "", on_done, None, None)
-        
+
 
 
 
