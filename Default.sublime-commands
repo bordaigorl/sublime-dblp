@@ -1,3 +1,4 @@
 [
-	{"caption": "Search DBLP", "command": "dblp_search"}
+    {"caption": "DBLP: Insert Citation Key", "command": "dblp_insert_key"},
+	{"caption": "DBLP: Insert Citation Entry", "command": "dblp_insert_citation"}
 ]
