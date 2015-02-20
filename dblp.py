@@ -74,16 +74,17 @@ class SearchDBLPThread(threading.Thread):
             result = []
             for hit in hits:
                 info = hit.get('info')
+                LOG(hit.get("@id", "") + " - " + str(info))
                 entry_url = hit.get('url')
-                authors = info['authors']['author']
+                authors = info.get('authors', {}).get('author', "No Author")
                 if info and entry_url:
                     key = entry_url.replace('http://www.dblp.org/rec/bibtex/', '')
                     result.append({
                             'key': key,
                             'cite_key': u"DBLP:" + key,
-                            'title': entityDecode(info['title']['text']),
+                            'title': entityDecode(info.get('title', {}).get('text', "No Title")),
                             'year': info['year'],
-                            'venue': entityDecode(info['venue']['text']),
+                            'venue': entityDecode(info.get('venue', {}).get('text', "")),
                             'authors': entityDecode(', '.join(authors))
                         })
 
