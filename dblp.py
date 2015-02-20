@@ -61,9 +61,10 @@ class SearchDBLPThread(threading.Thread):
 
     def run(self):
         try:
-            self.query = self.query.replace("'", " ")
+            self.query = self.query.replace("'", " ").replace(",", " ")
             url = "http://dblp.org/search/api/?format=json&q=%s&h=%s"
             url = url % (urlquote(self.query), self.max_hits)
+            LOG(url)
             data = urlopen(url).read().decode()
             data = json.loads(data)
             data = data['result']
