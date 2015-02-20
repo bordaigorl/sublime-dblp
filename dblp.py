@@ -48,9 +48,10 @@ MARKDOWN_TEMPLATE = Template(MARKDOWN_CITATION)
 
 class SearchDBLPThread(threading.Thread):
 
-    def __init__(self, query, on_search_results=None, on_error=None):
+    def __init__(self, query, max_hits, on_search_results=None, on_error=None):
         threading.Thread.__init__(self)
         self.query = query
+        self.max_hits = max_hits
         self.on_search_results = on_search_results
         self.on_error = on_error
 
@@ -61,7 +62,8 @@ class SearchDBLPThread(threading.Thread):
     def run(self):
         try:
             self.query = self.query.replace("'", " ")
-            url = "http://dblp.org/search/api/?format=json&q=" + urlquote(self.query)
+            url = "http://dblp.org/search/api/?format=json&q=%s&h=%s"
+            url = url % (urlquote(self.query), self.max_hits)
             data = urlopen(url).read().decode()
             data = json.loads(data)
             data = data['result']
@@ -106,7 +108,8 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
             if self._queryThread is not None:
                 LOG("Starting Thread...")
                 self._queryThread.stop()
-            self._queryThread = SearchDBLPThread(q, self.on_search_results, self.on_error)
+            m = self.args.get("max_hits", 500)
+            self._queryThread = SearchDBLPThread(q, m, self.on_search_results, self.on_error)
             self._queryThread.start()
 
     def on_search_results(self, results):
