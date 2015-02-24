@@ -113,6 +113,8 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
             m = self.args.get("max_hits", 500)
             self._queryThread = SearchDBLPThread(q, m, self.on_search_results, self.on_error)
             self._queryThread.start()
+        else:
+            sublime.status_message('DBLP query is too short!')
 
     def on_search_results(self, results):
         if len(results) == 0:
