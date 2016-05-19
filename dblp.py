@@ -136,9 +136,9 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
             return
         self.results = results
         menu = [[x['title'], '%s (%s)' % (x['authors'], x['year']), x['cite_key']] for x in results]
-        self.window.show_quick_panel(menu, self.on_entry_selected)
+        self.window.show_quick_panel(menu, self.on_entry_selected, 0, 0, self.on_entry_highlighted)
 
-    def on_entry_selected(self, i):
+    def on_entry_highlighted(self, i):
         if i >= 0:
             entry = self.results[i]
             txt = MARKDOWN_TEMPLATE.safe_substitute(entry)
@@ -150,6 +150,10 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
             panel.run_command('dblp_insert', {'characters': txt})
             panel.sel().clear()
             panel.settings().set('draw_centered', False)
+        
+        
+    def on_entry_selected(self, i):
+        self.on_entry_highlighted(i)
 
     def on_error(self, err):
         sublime.error_message("DBLP Search error: "+err)
@@ -174,6 +178,7 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
 class DblpInsertKey(DblpSearchCommand):
 
     def on_entry_selected(self, i):
+        self.window.run_command("hide_panel", {"panel": "output.DBLP"})    
         if i >= 0:
             citation = self.args.get('template', '${cite_key}')
             citation = Template(citation)
@@ -192,6 +197,7 @@ FORMAT_MAP = {
 class DblpInsertCitation(DblpSearchCommand):
 
     def on_entry_selected(self, i):
+        self.window.run_command("hide_panel", {"panel": "output.DBLP"})    
         if i >= 0:
             entry = self.results[i]
             format = self.args.get('format', 'bibtex')
