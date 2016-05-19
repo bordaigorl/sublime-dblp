@@ -103,6 +103,10 @@ The `dblp_insert_citation` offers advanced arguments:
 This plugin can be used in conjunction with [rDBLP][rdblp] to automatically maintain
 your bib files for your current publication.
 
+## Acknowledgements
+
+This plugin is a fork of the [DBLP Search](https://github.com/grundprinzip/sublime-dblp) plugin for ST2, but it evolved as a complete rewrite.
+
 - - -
 
 > The DBLP service provides open bibliographic information on major computer science journals and proceedings.
