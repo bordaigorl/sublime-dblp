@@ -49,10 +49,12 @@ MARKDOWN_TEMPLATE = Template(MARKDOWN_CITATION)
 def getFieldText(field, default=""):
     if isinstance(field, str):
         return entityDecode(field)
-    elif field is None:
-        return entityDecode(default)
-    else:
+    elif isinstance(field, list):
+        return ', '.join([entityDecode(x) for x in field])
+    elif hasattr(field, "text"):  # Old API
         return entityDecode(field.get("text", default))
+    else:
+        return entityDecode(default)
 
 class SearchDBLPThread(threading.Thread):
 
