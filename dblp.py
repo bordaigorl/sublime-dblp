@@ -135,7 +135,7 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
             sublime.status_message('DBLP returned no results for your search!')
             return
         self.results = results
-        menu = [[x['title'], '%s (%s)' % (x['authors'], x['year']), x['cite_key']] for x in results]
+        menu = [[x['title'], '%s (%s)' % (x['authors'], x['year'])] for x in results]
         self.window.show_quick_panel(menu, self.on_entry_selected, 0, 0, self.on_entry_highlighted)
 
     def on_entry_highlighted(self, i):
