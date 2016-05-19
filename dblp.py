@@ -1,142 +1,209 @@
 import sublime
 import sublime_plugin
 
-# Sublime Text 3 Python 3 compatibility
-try:
-    import httplib    
-except ImportError:
-    import http.client as httplib
-
 import urllib
 import json
 import re
-import functools
+from string import Template
 
 import threading
+
+DEBUG = False
+
+
+def LOG(m):
+    if DEBUG:
+        print("DBLP Search: ", m)
+
+if "quote_plus" in urllib.__dict__:
+    urlquote = urllib.quote_plus
+else:
+    urlquote = urllib.parse.quote_plus
+
+try:
+    import HTMLParser
+    entityDecode = HTMLParser.HTMLParser().unescape
+except ImportError:
+    import html.parser
+    entityDecode = html.parser.HTMLParser().unescape
+
 
 def strip_tags(value):
     """Returns the given HTML with all tags stripped."""
     return re.sub(r'<[^>]*?>', '', value)
 
+if 'request' in urllib.__dict__:
+    urlopen = urllib.request.urlopen
+else:
+    urlopen = urllib.urlopen
+
+MARKDOWN_CITATION = '''
+# ${title}
+> ${authors} (${year})
+> ${venue}
+  [${key}]
+'''
+MARKDOWN_TEMPLATE = Template(MARKDOWN_CITATION)
+
+
 class SearchDBLPThread(threading.Thread):
 
-    def __init__(self, v, q):
+    def __init__(self, query, max_hits, on_search_results=None, on_error=None):
         threading.Thread.__init__(self)
-        self.query = q
-        self.view = v
+        self.query = query
+        self.max_hits = max_hits
+        self.on_search_results = on_search_results
+        self.on_error = on_error
 
     def stop(self):
         if self.isAlive():
             self._Thread__stop()
 
     def run(self):
-        conn = httplib.HTTPConnection("dblp.org")
-        fun = urllib.urlencode if "urlencode" in urllib.__dict__ else urllib.parse.urlencode
-        params = fun({
-            "accc": ":",
-            "bnm" :"A",
-            "deb" :"0",
-            "dm" :"3",
-            "eph" : "1",
-            "er" : "20",
-            "fh" : "1",
-            "fhs" :"1",
-            "hppwt" : "20",
-            "hppoc" : "100",
-            "hrd" :"1a",
-            "hrw" :"1d",
-            "language" : "en",
-            "ll" :"2",
-            "log" : "/var/log/dblp/error_log",
-            "mcc" :"0",
-            "mcl" :"80",
-            "mcs" :"1000",
-            "mcsr" : "40",
-            "mo" : "100",
-            "name" :"dblpmirror",
-            "navigation_mode" : "user",
-            "page" :"index.php",
-            "path" : "/search/",
-            "qi" : "3",
-            "qid" :"3",
-            "qt" :"H",
-            "query" : self.query,
-            "rid" :"6",
-            "syn" : "0"
-            })
+        try:
+            self.query = self.query.replace("'", " ").replace(",", " ")
+            url = "http://dblp.org/search/api/?format=json&q=%s&h=%s"
+            url = url % (urlquote(self.query), self.max_hits)
+            LOG(url)
+            data = urlopen(url).read().decode()
+            data = json.loads(data)
+            data = data['result']
+            sublime.status_message(
+                "DBLP Search done in %s%s" % (data['time']['text'], data['time']['@unit']))
 
-        headers = {"Content-type": "application/x-www-form-urlencoded"}
-        conn.request("POST", "/autocomplete-php/autocomplete/ajax.php", params, headers)
-        response = conn.getresponse()
-        if response.status == 200:
-            data = response.read().decode("utf-8")
-
-            
-
-            parsed_data = (data.split("\n")[30].split("=", 1)[1])
-            # mangle ill formed json
-            parsed_data = parsed_data.replace("'", "\"")[:-1]
-            parsed_data = json.loads(parsed_data)
-
-            regexp = r"<tr><td.*?><a href=\"http://www.dblp.org/rec/bibtex/(.*?)\">.*?</td><td.*?>(.*?)</td><td.*?>(.*?)</td></tr>"
-
-            body = parsed_data["body"]
-
+            hits = data['hits'].get('hit', [])
             result = []
-            # Filter the relevant information:
-            for match in re.finditer(regexp, body):
-                print(match.group(1))
-                cite_key = u"DBLP:" + match.group(1)
-                title = strip_tags(match.group(3))
+            for hit in hits:
+                info = hit.get('info')
+                LOG(hit.get("@id", "") + " - " + str(info))
+                entry_url = hit.get('url')
+                authors = info.get('authors', {}).get('author', "No Author")
+                if info and entry_url:
+                    key = entry_url.replace('http://www.dblp.org/rec/bibtex/', '')
+                    result.append({
+                            'key': key,
+                            'cite_key': u"DBLP:" + key,
+                            'title': entityDecode(info.get('title', {}).get('text', "No Title")),
+                            'year': info['year'],
+                            'venue': entityDecode(info.get('venue', {}).get('text', "")),
+                            'authors': entityDecode(', '.join(authors))
+                        })
 
-                authors, title = title.split(":", 1)
-                result.append([title, authors, cite_key])
-
-            sublime.set_timeout(functools.partial(do_response,
-                result),1)
+            if self.on_search_results:
+                self.on_search_results(result)
             return
 
-        print(response.reason())
-        return
-
-class DblpInsertResultCommand(sublime_plugin.TextCommand):
-
-    def run(self, edit, text):
-        sel = self.view.sel()[0]
-        self.view.insert(edit, sel.begin(), "\cite{%s}" % text)
-
-def do_response(data):
-    """
-    Presents the response of the DBLP Query to the user
-    """
-    def on_done(i):
-        if i == -1:
-            return
-
-        cite_key = data[i][2]
-        view = sublime.active_window().active_view()
-        view.run_command("dblp_insert_result", {"text": cite_key})
-
-    sublime.active_window().show_quick_panel(data, on_done)
+        except Exception as e:
+            LOG('Error [%s]' % e)
+            if self.on_error:
+                self.on_error(str(e))
+            else:
+                raise
 
 
 class DblpSearchCommand(sublime_plugin.TextCommand):
-    
+
     _queryThread = None
 
-    def run(self, edit):
+    def on_query(self, q):
+        if len(q) > 3:
+            if self._queryThread is not None:
+                LOG("Starting Thread...")
+                self._queryThread.stop()
+            m = self.args.get("max_hits", 500)
+            self._queryThread = SearchDBLPThread(q, m, self.on_search_results, self.on_error)
+            self._queryThread.start()
 
-        def on_done(q):
-            if len(q) > 3:
-                if self._queryThread != None:
-                    print("Starting Thread...")
-                    self._queryThread.stop()
-                self._queryThread = SearchDBLPThread(self.view, q)
-                self._queryThread.start()
+    def on_search_results(self, results):
+        if len(results) == 0:
+            sublime.status_message('DBLP returned no results for your search!')
+            return
+        self.results = results
+        menu = [[x['title'], '%s (%s)' % (x['authors'], x['year']), x['cite_key']] for x in results]
+        self.window.show_quick_panel(menu, self.on_entry_selected)
+
+    def on_entry_selected(self, i):
+        if i >= 0:
+            entry = self.results[i]
+            txt = MARKDOWN_TEMPLATE.safe_substitute(entry)
+            self.window.run_command("show_panel", {"panel": "output.DBLP"})
+            panel = self.window.get_output_panel('DBLP')
+            syntax = sublime.find_resources("Markdown.tmLanguage")
+            if syntax:
+                panel.set_syntax_file(syntax[0])
+            panel.run_command('dblp_insert', {'characters': txt})
+            panel.sel().clear()
+            panel.settings().set('draw_centered', False)
+
+    def on_error(self, err):
+        sublime.error_message("DBLP Search error: "+err)
+
+    def run(self, edit, query_snippet=None, query=None, **kwargs):
+        self.args = kwargs
+        self.window = self.view.window()
+        if query:
+            self.on_query(query)
+        else:
+            prompt = self.window.show_input_panel("DBLP Search:", "", self.on_query, None, None)
+            if query_snippet:
+                prompt.run_command("insert_snippet", {"contents", query_snippet})
+
+    def is_enabled(self, **kwargs):
+        if 'selector' in kwargs:
+            pt = self.view.sel()[0].a if len(self.view.sel()) > 0 else 0
+            return self.view.score_selector(pt, kwargs['selector']) > 0
+        return True
 
 
-        self.view.window().show_input_panel("DBLP Search:", "", on_done, None, None)
-        
+class DblpInsertKey(DblpSearchCommand):
+
+    def on_entry_selected(self, i):
+        if i >= 0:
+            citation = self.args.get('template', '${cite_key}')
+            citation = Template(citation)
+            self.view.run_command(
+                "insert_snippet",
+                {"contents": citation.safe_substitute(self.results[i])})
+
+DBLP_FORMATS = set(['bibtex', 'bibtex_crossref', 'bib', 'bib1', 'bib2', 'xml', 'rdf'])
+FORMAT_MAP = {
+    'bibtex': 'bib1',
+    'bibtex_crossref': 'bib2'
+}
 
 
+class DblpInsertCitation(DblpSearchCommand):
 
+    def on_entry_selected(self, i):
+        if i >= 0:
+            entry = self.results[i]
+            format = self.args.get('format', 'bibtex')
+            if format not in DBLP_FORMATS:
+                citation = self.args.get('template', MARKDOWN_CITATION)
+                citation = Template(citation)
+                self.view.run_command(
+                    "insert_snippet",
+                    {'contents': citation.safe_substitute(entry)})
+            else:
+                format = FORMAT_MAP.get(format, format)
+                url = "http://www.dblp.org/rec/%s/%s" % (format, entry['key'])
+                LOG(url)
+                try:
+                    data = urlopen(url).read()
+                    enc = self.view.encoding()
+                    enc = enc if enc != 'Undefined' else 'utf8'
+                    self.view.run_command(
+                        "dblp_insert",
+                        {'characters': data.decode(enc)})
+                except Exception as e:
+                    sublime.status_message("DBLP Error: %s" % e)
+
+
+class DblpInsertCommand(sublime_plugin.TextCommand):
+
+    def run(self, edit, characters=""):
+        if len(self.view.sel()) > 0:
+            region = self.view.sel()[0]
+        else:
+            region = sublime.Region(0, 0)
+        self.view.replace(edit, region, characters)

@@ -1,0 +1,37 @@
+[
+    {
+        "caption": "DBLP: Lookup",
+        "command": "dblp_search"
+    },
+    {
+        "caption": "DBLP: Insert Citation Key",
+        "command": "dblp_insert_key"
+    },
+    {
+        "args": {
+            "selector": "text.tex.latex",
+            "template": "\\cite{${cite_key}}"
+        },
+        "caption": "DBLP: Insert \\cite Command",
+        "command": "dblp_insert_key"
+    },
+    {
+        "caption": "DBLP: Insert Citation Entry (BibTeX)",
+        "command": "dblp_insert_citation"
+    },
+    {
+        "args": {
+            "format": "markdown",
+            "selector": "text.html.markdown"
+        },
+        "caption": "DBLP: Insert Citation Entry (Markdown)",
+        "command": "dblp_insert_citation"
+    },
+    {
+        "args": {
+            "format": "xml"
+        },
+        "caption": "DBLP: Insert Citation Entry (XML)",
+        "command": "dblp_insert_citation"
+    }
+]

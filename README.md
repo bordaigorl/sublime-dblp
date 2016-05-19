@@ -8,9 +8,17 @@ citation key.
 This can be used in conjunction with [rDBLP][dblp] to automatically maintain
 your bib files for your current publication.
 
-The current keyboard shortcut is:
+You can install a keyboard shortcut by adding
 
-	CTRL+. , CTRL+d
+    {
+        "keys": ["ctrl+.", "ctrl+d"],
+        "command": "dblp_search",
+        "context": [
+            {"key": "selector", "operand": "text.tex.latex", "operator": "equal"}
+        ]
+    }
+
+to your user key bindings.
 
 DBLP Search for Sublime can now be installed directly using the [Package Control][pc].
 
