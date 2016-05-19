@@ -39,8 +39,8 @@ else:
 
 MARKDOWN_CITATION = '''
 # ${title}
-> ${authors} (${year})
-> ${venue}
+  > ${authors}
+    ${venue} (${year})
   [${key}](${url})
 '''
 MARKDOWN_TEMPLATE = Template(MARKDOWN_CITATION)
@@ -48,11 +48,11 @@ MARKDOWN_TEMPLATE = Template(MARKDOWN_CITATION)
 
 def getFieldText(field, default=""):
     if isinstance(field, str):
-        return field
+        return entityDecode(field)
     elif field is None:
-        return default
+        return entityDecode(default)
     else:
-        return field.get("text", default)
+        return entityDecode(field.get("text", default))
 
 class SearchDBLPThread(threading.Thread):
 
@@ -86,17 +86,20 @@ class SearchDBLPThread(threading.Thread):
                 LOG(hit.get("@id", "") + " - " + str(info))
                 # entry_url = hit.get('url') # OLD API
                 entry_url = info.get('url') if info else None
-                authors = info.get('authors', {}).get('author', "No Author")
+                authors = info.get('authors', {}).get('author', ["No Author"])
+                if isinstance(authors, str):
+                    authors = [authors]
+                authors = [entityDecode(a) for a in authors]
                 title = info.get('title', {})
                 if info and entry_url:
                     key = entry_url.replace('http://dblp.org/rec/', '')
                     result.append({
                             'key': key,
                             'cite_key': u"DBLP:" + key,
-                            'title': entityDecode(getFieldText(title, "No Title")),
+                            'title': getFieldText(title, "No Title"),
                             'year': info['year'],
-                            'venue': entityDecode(getFieldText(info.get('venue', {}))),
-                            'authors': entityDecode(', '.join(authors)),
+                            'venue': getFieldText(info.get('venue', {})),
+                            'authors': ', '.join(authors),
                             'url': entry_url
                         })
 
