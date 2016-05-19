@@ -41,10 +41,18 @@ MARKDOWN_CITATION = '''
 # ${title}
 > ${authors} (${year})
 > ${venue}
-  [${key}]
+  [${key}](${url})
 '''
 MARKDOWN_TEMPLATE = Template(MARKDOWN_CITATION)
 
+
+def getFieldText(field, default=""):
+    if isinstance(field, str):
+        return field
+    elif field is None:
+        return default
+    else:
+        return field.get("text", default)
 
 class SearchDBLPThread(threading.Thread):
 
@@ -62,7 +70,7 @@ class SearchDBLPThread(threading.Thread):
     def run(self):
         try:
             self.query = self.query.replace("'", " ").replace(",", " ")
-            url = "http://dblp.org/search/api/?format=json&q=%s&h=%s"
+            url = "http://dblp.dagstuhl.de/search/publ/api?format=json&q=%s&h=%s"
             url = url % (urlquote(self.query), self.max_hits)
             LOG(url)
             data = urlopen(url).read().decode()
@@ -76,17 +84,20 @@ class SearchDBLPThread(threading.Thread):
             for hit in hits:
                 info = hit.get('info')
                 LOG(hit.get("@id", "") + " - " + str(info))
-                entry_url = hit.get('url')
+                # entry_url = hit.get('url') # OLD API
+                entry_url = info.get('url') if info else None
                 authors = info.get('authors', {}).get('author', "No Author")
+                title = info.get('title', {})
                 if info and entry_url:
-                    key = entry_url.replace('http://www.dblp.org/rec/bibtex/', '')
+                    key = entry_url.replace('http://dblp.org/rec/', '')
                     result.append({
                             'key': key,
                             'cite_key': u"DBLP:" + key,
-                            'title': entityDecode(info.get('title', {}).get('text', "No Title")),
+                            'title': entityDecode(getFieldText(title, "No Title")),
                             'year': info['year'],
-                            'venue': entityDecode(info.get('venue', {}).get('text', "")),
-                            'authors': entityDecode(', '.join(authors))
+                            'venue': entityDecode(getFieldText(info.get('venue', {}))),
+                            'authors': entityDecode(', '.join(authors)),
+                            'url': entry_url
                         })
 
             if self.on_search_results:
@@ -113,6 +124,8 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
             m = self.args.get("max_hits", 500)
             self._queryThread = SearchDBLPThread(q, m, self.on_search_results, self.on_error)
             self._queryThread.start()
+        else:
+            sublime.status_message('DBLP query is too short!')
 
     def on_search_results(self, results):
         if len(results) == 0:
@@ -165,9 +178,10 @@ class DblpInsertKey(DblpSearchCommand):
                 "insert_snippet",
                 {"contents": citation.safe_substitute(self.results[i])})
 
-DBLP_FORMATS = set(['bibtex', 'bibtex_crossref', 'bib', 'bib1', 'bib2', 'xml', 'rdf'])
+DBLP_FORMATS = set(['bibtex', 'bibtex_std', 'bibtex_crossref', 'bib0', 'bib1', 'bib2', 'xml', 'rdf'])
 FORMAT_MAP = {
-    'bibtex': 'bib1',
+    'bibtex': 'bib0',
+    'bibtex_std': 'bib1',
     'bibtex_crossref': 'bib2'
 }
 
