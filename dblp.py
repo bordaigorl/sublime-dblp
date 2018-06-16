@@ -37,6 +37,16 @@ if 'request' in urllib.__dict__:
 else:
     urlopen = urllib.urlopen
 
+
+def key_from_url(url):
+    mark = "dblp.org/rec/"
+    pos = url.find(mark)
+    if pos >= 0:
+        return url[pos+len(mark):]
+    else:
+        return url
+
+
 MARKDOWN_CITATION = '''
 # ${title}
   > ${authors}
@@ -94,7 +104,7 @@ class SearchDBLPThread(threading.Thread):
                 authors = [entityDecode(a) for a in authors]
                 title = info.get('title', {})
                 if info and entry_url:
-                    key = entry_url.replace('http://dblp.org/rec/', '')
+                    key = info.get("key", key_from_url(entry_url))
                     result.append({
                             'key': key,
                             'cite_key': u"DBLP:" + key,
@@ -152,8 +162,8 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
             panel.run_command('dblp_insert', {'characters': txt})
             panel.sel().clear()
             panel.settings().set('draw_centered', False)
-        
-        
+
+
     def on_entry_selected(self, i):
         self.on_entry_highlighted(i)
 
@@ -180,7 +190,7 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
 class DblpInsertKey(DblpSearchCommand):
 
     def on_entry_selected(self, i):
-        self.window.run_command("hide_panel", {"panel": "output.DBLP"})    
+        self.window.run_command("hide_panel", {"panel": "output.DBLP"})
         if i >= 0:
             citation = self.args.get('template', '${cite_key}')
             citation = Template(citation)
@@ -199,7 +209,7 @@ FORMAT_MAP = {
 class DblpInsertCitation(DblpSearchCommand):
 
     def on_entry_selected(self, i):
-        self.window.run_command("hide_panel", {"panel": "output.DBLP"})    
+        self.window.run_command("hide_panel", {"panel": "output.DBLP"})
         if i >= 0:
             entry = self.results[i]
             format = self.args.get('format', 'bibtex')
