@@ -101,7 +101,12 @@ class SearchDBLPThread(threading.Thread):
                 authors = info.get('authors', {}).get('author', ["No Author"])
                 if isinstance(authors, str):
                     authors = [authors]
-                authors = [entityDecode(a) for a in authors]
+                elif isinstance(authors, dict):
+                    authors = [authors.get('text', "Unknown")]
+                for i, a in enumerate(authors):
+                    if isinstance(a, dict):
+                        a = a.get('text', "Unknown")
+                    authors[i] = entityDecode(a)
                 title = info.get('title', {})
                 if info and entry_url:
                     key = info.get("key", key_from_url(entry_url))
