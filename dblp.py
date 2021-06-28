@@ -87,6 +87,7 @@ class SearchDBLPThread(threading.Thread):
             url = "http://dblp.dagstuhl.de/search/publ/api?format=json&q=%s&h=%s"
             url = url % (urlquote(self.query), self.max_hits)
             LOG(url)
+            sublime.status_message("Contacting DBLP to fetch references...")
             data = urlopen(url).read().decode()
             data = json.loads(data)
             data = data['result']
@@ -165,7 +166,7 @@ class DblpSearchCommand(sublime_plugin.TextCommand):
             txt = MARKDOWN_TEMPLATE.safe_substitute(entry)
             self.window.run_command("show_panel", {"panel": "output.DBLP"})
             panel = self.window.get_output_panel('DBLP')
-            syntax = sublime.find_resources("Markdown.tmLanguage")
+            syntax = sublime.find_resources("Markdown.tmLanguage") + sublime.find_resources("Markdown.sublime-syntax")
             if syntax:
                 panel.set_syntax_file(syntax[0])
             panel.run_command('dblp_insert', {'characters': txt})
