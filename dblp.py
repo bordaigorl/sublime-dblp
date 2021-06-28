@@ -74,10 +74,12 @@ class SearchDBLPThread(threading.Thread):
         self.max_hits = max_hits
         self.on_search_results = on_search_results
         self.on_error = on_error
+        self._stopped = False
 
     def stop(self):
-        if self.isAlive():
-            self._Thread__stop()
+        self._stopped = True
+        # if self.isAlive():
+        #     self._Thread__stop()
 
     def run(self):
         try:
@@ -94,6 +96,8 @@ class SearchDBLPThread(threading.Thread):
             hits = data['hits'].get('hit', [])
             result = []
             for hit in hits:
+                if self._stopped:
+                    return
                 info = hit.get('info')
                 LOG(hit.get("@id", "") + " - " + str(info))
                 # entry_url = hit.get('url') # OLD API
@@ -120,7 +124,7 @@ class SearchDBLPThread(threading.Thread):
                             'url': entry_url
                         })
 
-            if self.on_search_results:
+            if self.on_search_results and not self._stopped:
                 self.on_search_results(result)
             return
 
@@ -202,6 +206,7 @@ class DblpInsertKey(DblpSearchCommand):
             self.view.run_command(
                 "insert_snippet",
                 {"contents": citation.safe_substitute(self.results[i])})
+
 
 DBLP_FORMATS = set(['bibtex', 'bibtex_std', 'bibtex_crossref', 'bib0', 'bib1', 'bib2', 'xml', 'rdf'])
 FORMAT_MAP = {
