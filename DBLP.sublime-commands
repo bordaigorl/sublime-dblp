@@ -9,6 +9,16 @@
     },
     {
         "args": {
+            "selector": "text.bibtex",
+            "template": "\tdoi = {${doi}},\n",
+            "include_informal": false,
+            "next_line": true,
+        },
+        "caption": "DBLP: Insert DOI",
+        "command": "dblp_insert_key"
+    },
+    {
+        "args": {
             "selector": "text.tex.latex",
             "template": "\\cite{${cite_key}}"
         },
@@ -16,8 +26,18 @@
         "command": "dblp_insert_key"
     },
     {
+        "caption": "DBLP: Insert Short Citation Entry (BibTeX)",
+        "command": "dblp_insert_citation",
+        "args": {
+            "format": "bibtex"
+        }
+    },
+    {
         "caption": "DBLP: Insert Citation Entry (BibTeX)",
-        "command": "dblp_insert_citation"
+        "command": "dblp_insert_citation",
+        "args": {
+            "format": "bibtex_std"
+        }
     },
     {
         "args": {
