@@ -272,7 +272,7 @@ class DblpInsertCitation(DblpSearchCommand):
                         try:
                             simple_key = entry['key'].split('/')[-1]
                             data = data.replace('DBLP:'+entry['key'], simple_key, 1)
-                        except Exception:
+                        except Exception as e:
                             print("DBLP plugin could not simplify key: ", str(e))
                     self.view.run_command(
                         "dblp_insert",
