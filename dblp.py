@@ -15,29 +15,27 @@ def LOG(m):
     if DEBUG:
         print("DBLP Search: ", m)
 
-if "quote_plus" in urllib.__dict__:
+try:  # Python 3
+    from urllib.parse import quote_plus as urlquote
+    from urllib.request import urlopen
+except ImportError:  # Python 2
     urlquote = urllib.quote_plus
-else:
-    urlquote = urllib.parse.quote_plus
+    urlopen = urllib.urlopen
 
-try:
-    import HTMLParser
-    entityDecode = HTMLParser.HTMLParser().unescape
+try:  # Python 3.4+
+    from html import unescape as entityDecode
 except ImportError:
-    import html.parser
-    entityDecode = html.parser.HTMLParser().unescape
+    try:  # Python 3.3
+        import html.parser
+        entityDecode = html.parser.HTMLParser().unescape
+    except ImportError:  # Python 2
+        import HTMLParser
+        entityDecode = HTMLParser.HTMLParser().unescape
 
 
 def strip_tags(value):
     """Returns the given HTML with all tags stripped."""
     return re.sub(r'<[^>]*?>', '', value)
-
-urlopen = None  # could be better
-
-if 'request' in urllib.__dict__:
-    urlopen = urllib.request.urlopen
-else:
-    urlopen = urllib.urlopen
 
 
 def key_from_url(url):
