@@ -10,6 +10,8 @@ import threading
 
 DEBUG = False
 
+APP_ID = "st4dblpplugin"
+VERSION = "3.1.3"
 
 def LOG(m):
     if DEBUG:
@@ -67,9 +69,8 @@ def getFieldText(field, default=""):
         return entityDecode(default)
 
 def dblp_search_url(query, max_hits):
-    query = query.replace("'", " ").replace(",", " ")
-    url = "http://dblp.dagstuhl.de/search/publ/api?format=json&q=%s&h=%s"
-    return url % (urlquote(query), max_hits)
+    query = urlquote(query.replace("'", " ").replace(",", " "))
+    return f"http://dblp.dagstuhl.de/search/publ/api?app={APP_ID}_{VERSION}&format=json&q={query}&h={max_hits}"
 
 def dblp_fetch(url):
     data = urlopen(url).read().decode()
@@ -240,9 +241,9 @@ class DblpInsertKey(DblpSearchCommand):
 
 DBLP_FORMATS = set(['bibtex', 'bibtex_std', 'bibtex_crossref', 'bib0', 'bib1', 'bib2', 'xml', 'rdf'])
 FORMAT_MAP = {
-    'bibtex': 'bib0',
-    'bibtex_std': 'bib1',
-    'bibtex_crossref': 'bib2'
+    'bibtex': '0',
+    'bibtex_std': '1',
+    'bibtex_crossref': '2'
 }
 
 
@@ -261,7 +262,9 @@ class DblpInsertCitation(DblpSearchCommand):
                     {'contents': citation.safe_substitute(entry)})
             else:
                 format = FORMAT_MAP.get(format, format)
-                url = "http://www.dblp.org/rec/%s/%s" % (format, entry['key'])
+                key = entry["key"]
+                # url = "http://dblp.org/rec/%s/%s" % (format, entry['key'])
+                url = f'https://dblp.org/rec/{key}.bib?param={format}&app={APP_ID}_{VERSION}'
                 LOG(url)
                 try:
                     data = urlopen(url).read()
